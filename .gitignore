@@ -99,3 +99,7 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# Defined by me
+*.json
+squad-dev-evaluate-in1
