@@ -105,3 +105,4 @@ ENV/
 squad-dev-evaluate-in1
 data/
 log/
+checkpoint/
