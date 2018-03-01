@@ -1,11 +1,11 @@
 # SQuAD-winner
 
 ##Usage
-Python 3.5/3.6 & PyTorch 0.3.1
+Python 3.5+ & PyTorch 0.3.1
 
 1. Install pytorch 0.3.1 for Python 3.5+
 2. Run `sudo pip3 -r requirements.txt`
-3. Run `python3 main.py --batch_size 64`
+3. Run `python3 main.py`
 
 ## Checkpoints
 **20180226**
