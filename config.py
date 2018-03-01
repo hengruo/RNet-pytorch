@@ -19,33 +19,39 @@ char_emb_url_base = "https://raw.githubusercontent.com/minimaxir/char-embeddings
 train_url_base = "https://rajpurkar.github.io/SQuAD-explorer/dataset/"
 dev_url_base = "https://rajpurkar.github.io/SQuAD-explorer/dataset/"
 
-char_vocab_config = {
+char_emb_config = {
     "<UNK>": 0,
     "<PAD>": 1,
     "<SOS>": 2,
     "<EOS>": 3,
-    "insert_start": "<SOS>",
-    "insert_end": "<EOS>",
+    "start": "<SOS>",
+    "end": "<EOS>",
     "tokenization": "nltk",
     "specials": ["<UNK>", "<PAD>", "<SOS>", "<EOS>"],
-    "embedding_root": char_emb_dir,
-    "embedding_name": char_emb_filename,
-    "embedding_type": "glove.840B",
-    "embedding_dim": 300
+    "root": char_emb_dir,
+    "name": char_emb_filename,
+    "type": "glove.840B",
+    "dim": 300,
+    "itox": None,
+    "xtoi": None,
+    "vec": None
 }
-word_vocab_config = {
+word_emb_config = {
     "<UNK>": 0,
     "<PAD>": 1,
     "<SOS>": 2,
     "<EOS>": 3,
-    "insert_start": "<SOS>",
-    "insert_end": "<EOS>",
+    "start": "<SOS>",
+    "end": "<EOS>",
     "tokenization": "nltk",
     "specials": ["<UNK>", "<PAD>", "<SOS>", "<EOS>"],
-    "embedding_root": word_emb_dir,
-    "embedding_name": word_emb_filename,
-    "embedding_type": "glove.840B",
-    "embedding_dim": 300
+    "root": word_emb_dir,
+    "name": word_emb_filename,
+    "type": "glove.840B",
+    "dim": 300,
+    "itox": None,
+    "xtoi": None,
+    "vec": None
 }
 train_config = {
     "dir": train_dir,
