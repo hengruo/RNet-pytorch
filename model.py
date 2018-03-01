@@ -8,4 +8,5 @@ class RNet(nn.Module):
     pass
 
 class Encoder(nn.Module):
-    def __init__()
+    def __init__(self):
+        pass
