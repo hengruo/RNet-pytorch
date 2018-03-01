@@ -1,0 +1,4 @@
+tensorboard_logger
+nltk
+spacy
+six
