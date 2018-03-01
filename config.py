@@ -62,6 +62,6 @@ encoder_config = {
     'laryer_num': 1,
     'bidirec': True,
     'rnn_type': 'gru',
-    ''
+    'var_length': False,
     'hidden_size': 
 }
