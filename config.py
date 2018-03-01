@@ -68,13 +68,3 @@ dev_config = {
     "pkl_name": dev_encoded,
     "data": None
 }
-
-encoder_config = {
-    'in_dropout': 0.0,
-    'dropout': 0.0,
-    'laryer_num': 1,
-    'bidirec': True,
-    'rnn_type': 'gru',
-    'var_length': False,
-    'hidden_size': 0
-}
