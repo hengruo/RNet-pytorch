@@ -6,10 +6,8 @@ char_emb_filename = "glove.840B.300d-char.txt"
 word_emb_zip = "glove.840B.300d.zip"
 word_emb_filename = "glove.840B.300d.txt"
 
-train_dir = "data/squad"
-dev_dir = "data/squad"
-char_emb_dir = "data/embedding/char"
-word_emb_dir = "data/embedding/word"
+data_dir = "data/squad"
+emb_dir = "data/embedding"
 
 train_encoded = "train.pt"
 dev_encoded = "dev.pt"
@@ -58,41 +56,12 @@ train_config = {
     "filename": train_filename
 }
 
-char_embedding_config = {"embedding_weights": cv_vec,
-                             "padding_idx": word_vocab_config["<UNK>"],
-                             "update": args.update_char_embedding,
-                             "bidirectional": args.bidirectional,
-                             "cell_type": "gru", "output_dim": 300}
-
-word_embedding_config = {"embedding_weights": wv_vec,
-                            "padding_idx": word_vocab_config["<UNK>"],
-                            "update": args.update_word_embedding}
-
-sentence_encoding_config = {"hidden_size": args.hidden_size,
-                            "num_layers": args.num_layers,
-                            "bidirectional": True,
-                            "dropout": args.dropout, }
-
-pair_encoding_config = {"hidden_size": args.hidden_size,
-                        "num_layers": args.num_layers,
-                        "bidirectional": args.bidirectional,
-                        "dropout": args.dropout,
-                        "gated": True, "mode": "GRU",
-                        "rnn_cell": torch.nn.GRUCell,
-                        "attn_size": args.attention_size,
-                        "residual": args.residual}
-
-self_matching_config = {"hidden_size": args.hidden_size,
-                        "num_layers": args.num_layers,
-                        "bidirectional": args.bidirectional,
-                        "dropout": args.dropout,
-                        "gated": True, "mode": "GRU",
-                        "rnn_cell": torch.nn.GRUCell,
-                        "attn_size": args.attention_size,
-                        "residual": args.residual}
-
-pointer_config = {"hidden_size": args.hidden_size,
-                    "num_layers": args.num_layers,
-                    "dropout": args.dropout,
-                    "residual": args.residual,
-                    "rnn_cell": torch.nn.GRUCell}
+encoder_config = {
+    'in_dropout': 0.0,
+    'dropout': 0.0,
+    'laryer_num': 1,
+    'bidirec': True,
+    'rnn_type': 'gru',
+    ''
+    'hidden_size': 
+}
