@@ -58,12 +58,26 @@ train_config = {
     "dir": data_dir,
     "raw_name": train_filename,
     "pkl_name": train_encoded,
-    "data": None
+    "data": {
+        "pword": [], # passage word embedding
+        "pchar": [], # passage char embedding
+        "qword": [], # question word embedding
+        "qchar": [], # question char embedding
+        "aword": [], # ANSWER's start word position and end word position
+        "achar": [] # ANSWER's start char position and end char position
+    }
 }
 
 dev_config = {
     "dir": data_dir,
     "raw_name": dev_filename,
     "pkl_name": dev_encoded,
-    "data": None
+    "data": {
+        "pword": [],
+        "pchar": [],
+        "qword": [],
+        "qchar": [],
+        "aword": [],
+        "achar": []
+    }
 }
