@@ -26,7 +26,6 @@ char_emb_config = {
     "<EOS>": 3,
     "start": "<SOS>",
     "end": "<EOS>",
-    "tokenization": "nltk",
     "specials": ["<UNK>", "<PAD>", "<SOS>", "<EOS>"],
     "dir": emb_dir,
     "raw_name": char_emb_filename,
@@ -44,7 +43,6 @@ word_emb_config = {
     "<EOS>": 3,
     "start": "<SOS>",
     "end": "<EOS>",
-    "tokenization": "nltk",
     "specials": ["<UNK>", "<PAD>", "<SOS>", "<EOS>"],
     "dir": emb_dir,
     "raw_name": word_emb_filename,
@@ -55,6 +53,7 @@ word_emb_config = {
     "xtoi": None,
     "vec": None
 }
+
 train_config = {
     "dir": data_dir,
     "raw_name": train_filename,

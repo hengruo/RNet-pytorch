@@ -8,6 +8,15 @@ Python 3.5/3.6 & PyTorch 0.3.1
 2. Run `sudo pip3 -r requirements.txt`
 3. Run `python3 main.py`
 
+## Structure
+config: all configurations.
+
+data: convert raw data into word embeddings & character embeddings. (HX)
+
+model: network model. (HZ)
+
+trainer: trainer & tester. (MZ)
+
 ## Checkpoints
 **20180226**
 
