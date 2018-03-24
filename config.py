@@ -1,5 +1,3 @@
-batch_size = 64
-
 train_filename = "train-v1.1.json"
 dev_filename = "dev-v1.1.json"
 char_emb_filename = "glove.840B.300d-char.txt"
