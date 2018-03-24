@@ -34,13 +34,22 @@ dev_url_base = "https://rajpurkar.github.io/SQuAD-explorer/dataset/"
 class SQuAD:
     class Dataset:
         def __init__(self):
+            '''
+            length: the length of dataset
+            wpassages: indexes of word embeddings for passages
+            wquestions: indexes of word embeddings for questions
+            cpassages: indexes of char embeddings for passages
+            cquestions: indexes of char embeddings for questions
+            answers: the positions in `wpassages` of the first and last words in an answer
+            pack: [(idx of wpassages, idx of wquestions, idx of answers)]
+            '''
             self.length: int = 0
             self.wpassages: list = []
             self.wquestions: list = []
             self.cpassages: list = []
             self.cquestions: list = []
-            self.answers: list(tuple) = [] # (start, end)
-            self.pack: list(tuple) = [] # (pid, qid, aid)
+            self.answers: list(tuple) = []
+            self.pack: list(tuple) = [] 
 
     def __init__(self):
         self.word_embedding: np.ndarray = np.zeros((1, 1))
