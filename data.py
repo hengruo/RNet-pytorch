@@ -5,7 +5,6 @@ import numpy as np
 import ujson as uj
 import spacy
 from collections import defaultdict
-import pickle
 import random
 
 '''
@@ -16,17 +15,13 @@ Prepare data
 train_filename = "train-v1.1.json"
 dev_filename = "dev-v1.1.json"
 char_emb_filename = "glove.840B.300d-char.txt"
-char_emb_pickle_filename = 'char-emb.pickle'
 word_emb_zip = "glove.840B.300d.zip"
 word_emb_filename = "glove.840B.300d.txt"
-word_emb_pickle_filename = 'word-emb.pickle'
 
 data_dir = "tmp/squad"
 emb_dir = "tmp/embedding"
 
 emb_dim = 300
-
-data_filename = "squad.pkl"
 
 word_emb_url_base = "http://nlp.stanford.edu/data/"
 char_emb_url_base = "https://raw.githubusercontent.com/minimaxir/char-embeddings/master/"
