@@ -239,6 +239,7 @@ def parse_data_II(squad):
 
 def get_dataset():
     if os.path.exists('data/') and len(os.listdir('data/') == 8):
+        print("Found existing data.")
         squad = SQuAD.load('data/')
     else:
         prepare_data()
