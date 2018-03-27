@@ -17,16 +17,18 @@ def parse_args():
     args.add_argument("--num_steps", dest='num_steps', type=int, default="60000")
     return args.parse_args()
 
-def to_tensor(pack, data):
-    # tensor representation of passage, question, answer 
-    p, q, a = None, None, None
-    return p, q, a
+def to_tensor(pack, data: SQuAD):
+    # tensor representation of passage, question, answer
+    # pw is a list of word embeddings.
+    # pw[i] == data.word_embedding[data.train.wpassages[pack[0]]]
+    pw, pc, qw, qc, a = [],[],[],[],[]
+    return pw, pc, qw, qc, a
 
 def train(data: SQuAD):
     model = RNet().cuda()
     for pack in data.train.pack:
-        p, q, a = to_tensor(pack, data)
-        output = model(p, q)
+        pw, pc, qw, qc, a = to_tensor(pack, data)
+        output = model(pw, pc, qw, qc)
         loss = F.cross_entropy(output, a)
         optimizer = optim.Adadelta(loss)
 
