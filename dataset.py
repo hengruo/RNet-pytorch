@@ -7,7 +7,7 @@ import spacy
 from collections import defaultdict
 import random
 import copy
-from models import CharEmbedding, emb_size, char_emb_size
+from models import CharEmbedding, word_emb_size, char_emb_size
 import torch
 from torch.autograd import Variable
 from tqdm import *
@@ -150,7 +150,7 @@ def parse_data_I(squad: SQuAD):
     specials = ['<UNK>', '<PAD>', '<SOS>', '<EOS>']
     [ctoi[x] for x in specials]
     [wtoi[x] for x in specials]
-    cemb = [np.zeros(emb_size) for _ in specials]
+    cemb = [np.zeros(word_emb_size) for _ in specials]
     wemb = copy.deepcopy(cemb)
     itoc = {}
     print('Reading char embeddings')
@@ -233,8 +233,75 @@ def parse_data_II(squad):
     parse_dataset(train, squad, squad.train)
     parse_dataset(dev, squad, squad.dev)
 
+def parse_data_III(squad):
+    wtoi = defaultdict(lambda: len(wtoi))
+    specials = ['<UNK>', '<PAD>', '<SOS>', '<EOS>']
+    [wtoi[x] for x in specials]
+    cemb = [np.zeros(char_emb_size) for _ in specials]
+    wemb = [np.zeros(word_emb_size) for _ in specials]
+    ss = []
+    for p in squad.train.passages:
+        ws = []
+        for i, n in enumerate(p):
+            c = squad.itow[str(n)]
+            if c not in wtoi:
+                nn = wtoi[c]
+                wemb.append(squad.word_embedding[n])
+                cemb.append(squad.char_embedding[n])
+                p[i] = nn
+            ws.append(wtoi[c])
+        ss.append(ws)
+    squad.train.passages = ss
+    ss = []
+    for p in squad.dev.passages:
+        ws = []
+        for i, n in enumerate(p):
+            c = squad.itow[str(n)]
+            if c not in wtoi:
+                nn = wtoi[c]
+                wemb.append(squad.word_embedding[n])
+                cemb.append(squad.char_embedding[n])
+                p[i] = nn
+            ws.append(wtoi[c])
+        ss.append(ws)
+    squad.dev.passages = ss
+    ss = []
+    for p in squad.train.questions:
+        ws = []
+        for i, n in enumerate(p):
+            c = squad.itow[str(n)]
+            if c not in wtoi:
+                nn = wtoi[c]
+                wemb.append(squad.word_embedding[n])
+                cemb.append(squad.char_embedding[n])
+                p[i] = nn
+            ws.append(wtoi[c])
+        ss.append(ws)
+    squad.train.questions = ss
+    ss = []
+    for p in squad.dev.questions:
+        ws = []
+        for i, n in enumerate(p):
+            c = squad.itow[str(n)]
+            if c not in wtoi:
+                nn = wtoi[c]
+                wemb.append(squad.word_embedding[n])
+                cemb.append(squad.char_embedding[n])
+                p[i] = nn
+            ws.append(wtoi[c])
+        ss.append(ws)
+    squad.dev.questions = ss
+    itow = {}
+    for word in wtoi:
+        itow[wtoi[word]] = word
+    squad.word_embedding = np.array(wemb)
+    squad.char_embedding = np.array(cemb)
+    squad.itow = dict(itow)
+    squad.wtoi = dict(wtoi)
+
+
 def get_dataset():
-    if os.path.exists('data/') and len(os.listdir('data/')) == 8:
+    if os.path.exists('data/') and len(os.listdir('data/')) > 1:
         print("Found existing data.")
         squad = SQuAD.load('data/')
     else:
@@ -242,5 +309,16 @@ def get_dataset():
         squad = SQuAD()
         parse_data_I(squad)
         parse_data_II(squad)
+        parse_data_III(squad)
         squad.dump("data/")
     return squad
+
+def test():
+    print("Found existing data.")
+    squad = SQuAD.load('data_full/')
+    print("Loaded.")
+    parse_data_III(squad)
+    squad.dump('data/')
+
+if __name__ == '__main__':
+    test()

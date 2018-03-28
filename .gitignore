@@ -109,3 +109,7 @@ tmp/
 .idea/
 *.ipynb
 HKRNET/
+data_full/
+log/
+model/
+.vscode/

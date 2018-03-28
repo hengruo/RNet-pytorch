@@ -55,12 +55,12 @@ def to_tensor(pack, data: SQuAD):
         pc[:pl, i, :] = torch.FloatTensor(data.char_embedding[Ps[i]])
         qw[:ql, i, :] = torch.FloatTensor(data.word_embedding[Qs[i]])
         qc[:ql, i, :] = torch.FloatTensor(data.char_embedding[Qs[i]])
-        a[i, :] = torch.FloatTensor(As[i])
+        a[i, :] = torch.LongTensor(As[i])
     if is_cuda:
         pw, pc, qw, qc, a = Variable(pw.cuda()), Variable(pc.cuda()), Variable(qw.cuda()), Variable(qc.cuda()), Variable(a.cuda())
     else:
         pw, pc, qw, qc, a = Variable(pw), Variable(pc), Variable(qw), Variable(qc), Variable(a)
-    return pw, pc, qw, qc, a
+    return pw, pc, qw, qc, a.long()
 
 
 def trunk(packs, batch_size):
@@ -87,15 +87,18 @@ def train(epoch: int, data: SQuAD):
                 pack = packs[i]
                 pw, pc, qw, qc, a = to_tensor(pack, data)
                 optimizer.zero_grad()
-                output = model(pw, pc, qw, qc)
-                loss = F.cross_entropy(output, a)
+                out1, out2 = model(pw, pc, qw, qc)
+                loss1 = F.cross_entropy(out1, a[:, 0])
+                loss2 = F.cross_entropy(out2, a[:, 1])
+                loss = (loss1 + loss2)/2
                 loss.backward()
                 optimizer.step()
                 if (i + 1) % checkpoint == 0:
                     torch.save(model, os.path.join(model_dir, "model-tmp-{:02d}-{}.pt".format(ep, i + 1)))
         torch.save(model, os.path.join(model_dir, model_fn))
-    except Exception:
+    except Exception as e:
         torch.save(model, os.path.join(model_dir, "model-{:02d}-{}.pt".format(ep, i + 1)))
+        raise e
     return model
 
 
