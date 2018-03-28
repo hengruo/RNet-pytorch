@@ -7,6 +7,7 @@ import argparse
 import json
 import sys
 
+import matplotlib.pyplot as plt
 
 def normalize_answer(s):
     """Lower text and remove punctuation, articles and extra whitespace."""
@@ -150,9 +151,130 @@ def evaluate_len(dataset, predictions):
                         min_answer_length = len(answer)
 
     print([max_context_length,max_question_length,max_answer_length])
-    print([min_context_length, min_question_length, min_answer_length])
-    #
-    # return {'exact_match': exact_match, 'f1': f1}
+    print([min_context_length, min_question_length, max_answer_length])
+
+
+def evaluate_passage_len_wrt_score(dataset, predictions):
+    passage_len_seg_count = [0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    passage_len_seg_score_f1 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    passage_len_seg_score_em = [0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+    for article in dataset:
+        for paragraph in article['paragraphs']:
+            context = paragraph['context'].split()
+            seg = -1
+            for i in range(len(passage_len_seg_count)):
+                if i * 50 < len(context) <= (i + 1) * 50:
+                    passage_len_seg_count[i] += 1
+                    seg = i
+                    break
+            exact_match = f1 = question_count = 0
+            for qa in paragraph['qas']:
+                question_count += 1
+                if qa['id'] not in predictions:
+                    continue
+                ground_truths = list(map(lambda x: x['text'], qa['answers']))
+                prediction = predictions[qa['id']]
+                exact_match += metric_max_over_ground_truths(
+                    exact_match_score, prediction, ground_truths)
+                f1 += metric_max_over_ground_truths(
+                    f1_score, prediction, ground_truths)
+            exact_match /= question_count
+            f1 /= question_count
+            passage_len_seg_score_f1[seg] += f1
+            passage_len_seg_score_em[seg] += exact_match
+
+    for i in range(len(passage_len_seg_count)):
+        if passage_len_seg_count[i] != 0:
+            passage_len_seg_score_f1[i] /= passage_len_seg_count[i]
+            passage_len_seg_score_f1[i] *= 100
+            passage_len_seg_score_em[i] /= passage_len_seg_count[i]
+            passage_len_seg_score_em[i] *= 100
+
+    print(passage_len_seg_score_em)
+    print(passage_len_seg_score_f1)
+
+def evaluate_question_len_wrt_score(dataset, predictions):
+    q_seg_count = [0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    q_seg_score_f1 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    q_seg_score_em = [0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+    for article in dataset:
+        for paragraph in article['paragraphs']:
+            for qa in paragraph['qas']:
+                question_len = len(qa['question'].split())
+                q_len_type = 0;
+                for i in range(len(q_seg_count)):
+                    if i * 3 < question_len <= (i+1) * 3:
+                        q_len_type = i;
+                        q_seg_count[i] += 1
+                if qa['id'] not in predictions:
+                    continue
+                ground_truths = list(map(lambda x: x['text'], qa['answers']))
+                prediction = predictions[qa['id']]
+                exact_match = metric_max_over_ground_truths(
+                    exact_match_score, prediction, ground_truths)
+                f1 = metric_max_over_ground_truths(
+                    f1_score, prediction, ground_truths)
+
+                q_seg_score_em[q_len_type] += exact_match
+                q_seg_score_f1[q_len_type] += f1
+
+    for i in range(len(q_seg_count)):
+        if q_seg_count[i] != 0:
+            q_seg_score_f1[i] /= q_seg_count[i]
+            q_seg_score_f1[i] *= 100
+            q_seg_score_em[i] /= q_seg_count[i]
+            q_seg_score_em[i] *= 100
+        ground_truths = list(map(lambda x: x['text'], qa['answers']))
+        prediction = predictions[qa['id']]
+        exact_match = metric_max_over_ground_truths(
+            exact_match_score, prediction, ground_truths)
+        f1 = metric_max_over_ground_truths(
+            f1_score, prediction, ground_truths)
+    print(q_seg_score_em)
+    print(q_seg_score_f1)
+    print(q_seg_count)
+
+
+def evaluate_pred_len_wrt_score(dataset, predictions):
+    ans_seg_count = [0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ans_seg_score_f1 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    ans_seg_score_em = [0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+    for article in dataset:
+        for paragraph in article['paragraphs']:
+            for qa in paragraph['qas']:
+                prediction = predictions[qa['id']]
+                pred_len = len(predictions[qa['id']].split())
+                pred_seg_type = 0
+                for i in range(10):
+                    if i * 3 < pred_len <= (i+1) * 3:
+                        ans_seg_count[i] += 1
+                        pred_seg_type = i
+
+                ground_truths = list(map(lambda x: x['text'], qa['answers']))
+
+                exact_match = metric_max_over_ground_truths(
+                    exact_match_score, prediction, ground_truths)
+                f1 = metric_max_over_ground_truths(
+                    f1_score, prediction, ground_truths)
+
+                ans_seg_score_em[pred_seg_type] += exact_match
+                ans_seg_score_f1[pred_seg_type] += f1
+
+    for i in range(len(ans_seg_count)):
+        if ans_seg_count[i] != 0:
+            ans_seg_score_f1[i] /= ans_seg_count[i]
+            ans_seg_score_em[i] /= ans_seg_count[i]
+            ans_seg_score_f1[i] *= 100
+            ans_seg_score_em[i] *= 100
+
+    print(ans_seg_score_em)
+    print(ans_seg_score_f1)
+
+
+
 
 if __name__ == '__main__':
     expected_version = '1.1'
@@ -170,4 +292,4 @@ if __name__ == '__main__':
         dataset = dataset_json['data']
     with open(args.prediction_file) as prediction_file:
         predictions = json.load(prediction_file)
-    # print(json.dumps(evaluate(dataset, predictions)))
+    print(json.dumps(evaluate_pred_len_wrt_score(dataset, predictions)))
