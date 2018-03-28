@@ -54,6 +54,7 @@ class Encoder(nn.Module):
         hs = Variable(torch.zeros(l, self.num_layers*self.dir, batch_size, hidden_size))
         input = torch.unsqueeze(input, dim=1)
         for i in range(l):
+            self.gru.flatten_parameters()
             o, self.h = self.gru(input[i], self.h)
             hs[i] = self.h
         hs = hs.permute([0,2,1,3]).contiguous().view(l, batch_size, -1)
@@ -95,6 +96,7 @@ class PQMatcher(nn.Module):
             g = F.sigmoid(self.Wg(r))
             r = torch.mul(g, r)
             c_ = r[:, self.in_size*2:]
+            self.gru.flatten_parameters()
             self.v = self.gru(c_, self.v)
             vs[i] = self.v
         vs = self.dropout(vs)
@@ -123,6 +125,7 @@ class SelfMatcher(nn.Module):
             s = torch.squeeze(s, 2)
             a = F.softmax(s, 1)
             c = torch.bmm(a.unsqueeze(1), v.permute([1, 0, 2])).squeeze()
+            self.gru.flatten_parameters()
             self.h = self.gru(c, self.h)
             hs[i] = self.h
         hs = self.dropout(hs)
@@ -156,6 +159,7 @@ class Pointer(nn.Module):
         s = torch.squeeze(s)
         p1 = F.softmax(s, 1)
         c = torch.bmm(p1.unsqueeze(1), h.permute([1,0,2])).squeeze()
+        self.gru.flatten_parameters()
         r = self.gru(c, r)
         x = F.tanh(self.Wh(h) + self.Wha(r))
         s = torch.bmm(x.permute([1, 0, 2]), self.v)

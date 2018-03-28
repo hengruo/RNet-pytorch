@@ -16,8 +16,8 @@ import random
 model_fn = "model.pt"
 model_dir = "model/"
 log_dir = "log/"
-checkpoint: int = 1000
-batch_size: int = 64
+checkpoint = 1000
+batch_size = 64
 is_cuda = torch.cuda.is_available()
 
 
@@ -30,7 +30,7 @@ def parse_args():
     return args.parse_args()
 
 
-def to_tensor(pack, data: SQuAD):
+def to_tensor(pack, data):
     # tensor representation of passage, question, answer
     # pw is a list of word embeddings.
     # pw[i] == data.word_embedding[data.train.wpassages[pack[0]]]
@@ -75,7 +75,7 @@ def trunk(packs, batch_size):
     return bpacks
 
 
-def train(epoch: int, data: SQuAD):
+def train(epoch, data):
     model = RNet()
     optimizer = optim.Adadelta(model.parameters(), lr=1.0, rho=0.95, eps=1e-6)
     packs = trunk(data.train.packs, batch_size)
@@ -102,7 +102,7 @@ def train(epoch: int, data: SQuAD):
     return model
 
 
-def test(model, data: SQuAD):
+def test(model, data):
     pass
 
 
