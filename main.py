@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torch.cuda
-from tqdm import *
+from tqdm import tqdm
 import os
 import random
 import ujson as uj
@@ -127,12 +127,12 @@ def test(model, data):
         _, idx2 = torch.max(out2, dim=1)
         na = torch.cat([idx1.unsqueeze(1), idx2.unsqueeze(1)], dim=1)
         for j in range(batch_size):
-            ans = get_anwser(na[j,0], na[j,1], pid, itow, dataset)
+            ans = get_anwser(na[j,0], na[j,1], pack[j][0], data.itow, data.dev)
             anss[data.dev.question_ids[pack[j][1]]] = ans
     with open('log/answer.json', 'w') as f:
         uj.save(ans, f)
         em, f1 = eval.evaluate_from_file('tmp/dev-v1.1.json', 'log/answer.json')
-        print("EM: {.3f}, F1: {.3f}".format(em, f1))
+        print("EM: {}, F1: {}".format(em, f1))
 
 def main():
     args = parse_args()
