@@ -17,6 +17,7 @@ word_emb_size = 300
 char_emb_size = char_dir * char_num_layers * char_hidden_size
 emb_size = word_emb_size + char_emb_size
 
+# Using bidirectional gru hidden state to represent char embedding for a word
 class CharEmbedding(nn.Module):
     def __init__(self, in_size=word_emb_size):
         super(CharEmbedding, self).__init__()
@@ -36,6 +37,8 @@ class CharEmbedding(nn.Module):
         h = h.view(-1)
         return h
 
+# Input is the concatenation of word embedding and its corresponding char embedding
+# Output is passage embedding or question embedding
 class Encoder(nn.Module):
     def __init__(self, in_size):
         super(Encoder, self).__init__()
@@ -61,7 +64,8 @@ class Encoder(nn.Module):
         hs = self.dropout(hs)
         return hs
 
-
+# Using passage and question to obtain question-aware passage representation
+# Co-attention
 class PQMatcher(nn.Module):
     def __init__(self, in_size):
         super(PQMatcher, self).__init__()
@@ -102,7 +106,8 @@ class PQMatcher(nn.Module):
         vs = self.dropout(vs)
         return vs.contiguous()
 
-
+# Input is question-aware passage representation
+# Output is self-attention question-aware passage representation
 class SelfMatcher(nn.Module):
     def __init__(self, in_size):
         super(SelfMatcher, self).__init__()
@@ -131,7 +136,8 @@ class SelfMatcher(nn.Module):
         hs = self.dropout(hs)
         return hs.contiguous()
 
-
+# Input is question representation and self-attention question-aware passage representation
+# Output are start and end pointer distribution
 class Pointer(nn.Module):
     def __init__(self, in_size1, in_size2):
         super(Pointer, self).__init__()
