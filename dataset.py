@@ -6,6 +6,11 @@ import ujson as uj
 import spacy
 from collections import defaultdict
 import random
+import copy
+from models import CharEmbedding, emb_size, char_emb_size
+import torch
+from torch.autograd import Variable
+from tqdm import *
 
 '''
 Prepare data
@@ -21,8 +26,6 @@ word_emb_filename = "glove.840B.300d.txt"
 data_dir = "tmp/squad"
 emb_dir = "tmp/embedding"
 
-emb_dim = 300
-
 word_emb_url_base = "http://nlp.stanford.edu/data/"
 char_emb_url_base = "https://raw.githubusercontent.com/minimaxir/char-embeddings/master/"
 train_url_base = "https://rajpurkar.github.io/SQuAD-explorer/dataset/"
@@ -30,26 +33,21 @@ dev_url_base = "https://rajpurkar.github.io/SQuAD-explorer/dataset/"
 
 # SQuAD dataset
 
-
 class SQuAD:
     class Dataset:
         def __init__(self):
             '''
             length: the length of dataset
-            wpassages: indexes of word embeddings for passages
-            wquestions: indexes of word embeddings for questions
-            cpassages: indexes of char embeddings for passages
-            cquestions: indexes of char embeddings for questions
+            passages: indexes of word embeddings for passages
+            questions: indexes of word embeddings for questions
             answers: the positions in `wpassages` of the first and last words in an answer
             pack: [(idx of wpassages, idx of wquestions, idx of answers)]
             '''
             self.length: int = 0
-            self.wpassages: list = []
-            self.wquestions: list = []
-            self.cpassages: list = []
-            self.cquestions: list = []
+            self.passages: list = []
+            self.questions: list = []
             self.answers: list(tuple) = []
-            self.pack: list(tuple) = [] 
+            self.packs: list(tuple) = []
 
     def __init__(self):
         self.word_embedding: np.ndarray = np.zeros((1, 1))
@@ -57,8 +55,6 @@ class SQuAD:
         self.train = SQuAD.Dataset()
         self.dev = SQuAD.Dataset()
         self.itow: dict = {}
-        self.itoc: dict = {}
-        self.ctoi: dict = {}
         self.wtoi: dict = {}
     
     @classmethod
@@ -67,14 +63,8 @@ class SQuAD:
         f = open(os.path.join(dirname, "itow.json"), "r")
         squad.itow = uj.load(f)
         f.close()
-        f = open(os.path.join(dirname, "itoc.json"), "r")
-        squad.itoc = uj.load(f)
-        f.close()
         f = open(os.path.join(dirname, "wtoi.json"), "r")
         squad.wtoi = uj.load(f)
-        f.close()
-        f = open(os.path.join(dirname, "ctoi.json"), "r")
-        squad.ctoi = uj.load(f)
         f.close()
         f = open(os.path.join(dirname, "char_embedding.npy"), "rb")
         squad.char_embedding = np.load(f)
@@ -100,14 +90,8 @@ class SQuAD:
         f = open(os.path.join(dirname, "itow.json"), "w")
         uj.dump(self.itow, f)
         f.close()
-        f = open(os.path.join(dirname, "itoc.json"), "w")
-        uj.dump(self.itoc, f)
-        f.close()
         f = open(os.path.join(dirname, "wtoi.json"), "w")
         uj.dump(self.wtoi, f)
-        f.close()
-        f = open(os.path.join(dirname, "ctoi.json"), "w")
-        uj.dump(self.ctoi, f)
         f.close()
         f = open(os.path.join(dirname, "char_embedding.npy"), "wb")
         np.save(f, self.char_embedding, allow_pickle=False)
@@ -166,13 +150,15 @@ def parse_data_I(squad: SQuAD):
     specials = ['<UNK>', '<PAD>', '<SOS>', '<EOS>']
     [ctoi[x] for x in specials]
     [wtoi[x] for x in specials]
-    cemb, wemb = [np.zeros(emb_dim) for _ in specials], [
-        np.zeros(emb_dim) for _ in specials]
+    cemb = [np.zeros(emb_size) for _ in specials]
+    wemb = copy.deepcopy(cemb)
+    itoc = {}
+    print('Reading char embeddings')
     for line in cembf.readlines():
         tmp = line.split(' ')
         ctoi[tmp[0]]
         cemb.append(np.array([float(x) for x in tmp[1:]]))
-
+    print('Reading word embeddings')
     for line in wembf.readlines():
         tmp = line.split(' ')
         wtoi[tmp[0]]
@@ -181,12 +167,18 @@ def parse_data_I(squad: SQuAD):
             _ = wemb.pop()
             
     for char in ctoi:
-        squad.itoc[ctoi[char]] = char
+        itoc[ctoi[char]] = char
     for word in wtoi:
         squad.itow[wtoi[word]] = word
-    squad.ctoi = dict(ctoi)
     squad.wtoi = dict(wtoi)
-    squad.char_embedding = np.array(cemb)
+    charemb = CharEmbedding()
+    print('Generating word\'s char-level embeddings')
+    wcemb = [np.zeros(char_emb_size) for _ in specials]
+    for i in tqdm(range(4, len(wemb))):
+        chars = torch.FloatTensor([cemb[ctoi[c]] for c in list(squad.itow[str(i)])])
+        chars = Variable(torch.unsqueeze(chars, 1))
+        wcemb.append(charemb(chars).data.numpy())
+    squad.char_embedding = np.array(wcemb)
     squad.word_embedding = np.array(wemb)
 
 def convert_idx(text, tokens):
@@ -209,13 +201,11 @@ def parse_dataset(jsondata, squad: SQuAD ,dataset: SQuAD.Dataset):
             context = para['context'].replace("''", '" ').replace("``", '" ')
             context_tokens = [token.text for token in tokenizer(context)]
             context_token_wids = [squad.wtoi[tk] if tk in squad.wtoi else 0 for tk in context_tokens]
-            context_token_cids = [squad.ctoi[ch] if ch in squad.ctoi else 0 for ch in list(context)]
             spans = convert_idx(context, context_tokens)
             for qa in para['qas']:
                 ques = qa['question'].replace("''", '" ').replace("``", '" ')
                 ques_tokens = [token.text for token in tokenizer(ques)]
                 ques_token_wids = [squad.wtoi[tk] if tk in squad.wtoi else 0 for tk in ques_tokens]
-                ques_token_cids = [squad.ctoi[ch] if ch in squad.ctoi else 0 for ch in list(ques)]
                 for ans in qa['answers']:
                     ans_text = ans['text']
                     ans_start = ans['answer_start']
@@ -228,14 +218,11 @@ def parse_dataset(jsondata, squad: SQuAD ,dataset: SQuAD.Dataset):
                     dataset.answers.append(ans_pair)
                     dataset.pack.append((pid, qid, aid))
                     aid += 1
-                dataset.wquestions.append(ques_token_wids)
-                dataset.cquestions.append(ques_token_cids)
+                dataset.questions.append(ques_token_wids)
                 qid += 1
-            dataset.wpassages.append(context_token_wids)
-            dataset.cpassages.append(context_token_cids)
+            dataset.passages.append(context_token_wids)
             pid += 1
     dataset.length = len(dataset.pack)
-    random.shuffle(dataset.pack)
 
 def parse_data_II(squad):
     f = open(os.path.join(data_dir, train_filename), 'r')
@@ -247,7 +234,7 @@ def parse_data_II(squad):
     parse_dataset(dev, squad, squad.dev)
 
 def get_dataset():
-    if os.path.exists('data/') and len(os.listdir('data/') == 8):
+    if os.path.exists('data/') and len(os.listdir('data/')) == 8:
         print("Found existing data.")
         squad = SQuAD.load('data/')
     else:
