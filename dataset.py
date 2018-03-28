@@ -30,6 +30,7 @@ word_emb_url_base = "http://nlp.stanford.edu/data/"
 char_emb_url_base = "https://raw.githubusercontent.com/minimaxir/char-embeddings/master/"
 train_url_base = "https://rajpurkar.github.io/SQuAD-explorer/dataset/"
 dev_url_base = "https://rajpurkar.github.io/SQuAD-explorer/dataset/"
+# Glove embeddingß
 
 # SQuAD dataset
 
