@@ -43,19 +43,19 @@ class SQuAD:
             answers: the positions in `wpassages` of the first and last words in an answer
             pack: [(idx of wpassages, idx of wquestions, idx of answers)]
             '''
-            self.length: int = 0
-            self.passages: list = []
-            self.questions: list = []
-            self.answers: list(tuple) = []
-            self.packs: list(tuple) = []
+            self.length = 0
+            self.passages = []
+            self.questions = []
+            self.answers = []
+            self.packs = []
 
     def __init__(self):
-        self.word_embedding: np.ndarray = np.zeros((1, 1))
-        self.char_embedding: np.ndarray = np.zeros((1, 1))
+        self.word_embedding = np.zeros((1, 1))
+        self.char_embedding = np.zeros((1, 1))
         self.train = SQuAD.Dataset()
         self.dev = SQuAD.Dataset()
-        self.itow: dict = {}
-        self.wtoi: dict = {}
+        self.itow = {}
+        self.wtoi = {}
     
     @classmethod
     def load(cls, dirname: str):
