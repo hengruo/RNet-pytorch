@@ -46,6 +46,7 @@ class SQuAD:
             self.length = 0
             self.passages = []
             self.questions = []
+            self.question_ids = []
             self.answers = []
             self.packs = []
 
@@ -206,6 +207,7 @@ def parse_dataset(jsondata, squad: SQuAD ,dataset: SQuAD.Dataset):
                 ques = qa['question'].replace("''", '" ').replace("``", '" ')
                 ques_tokens = [token.text for token in tokenizer(ques)]
                 ques_token_wids = [squad.wtoi[tk] if tk in squad.wtoi else 0 for tk in ques_tokens]
+                ques_id = qa['id']
                 for ans in qa['answers']:
                     ans_text = ans['text']
                     ans_start = ans['answer_start']
@@ -219,6 +221,7 @@ def parse_dataset(jsondata, squad: SQuAD ,dataset: SQuAD.Dataset):
                     dataset.pack.append((pid, qid, aid))
                     aid += 1
                 dataset.questions.append(ques_token_wids)
+                dataset.question_ids.append(ques_id)
                 qid += 1
             dataset.passages.append(context_token_wids)
             pid += 1
