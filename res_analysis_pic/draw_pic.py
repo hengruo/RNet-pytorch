@@ -1,0 +1,16 @@
+import matplotlib.pyplot as plt
+
+passage_len_seg_score_em = [65.15508545015801, 69.34366390205037, 71.70630516620956, 73.50155489141204, 71.19312169312167, 61.26068376068379, 72.08333333333331, 65.83333333333333, 30.000000000000004, 82.22222222222223, 65.0, 0, 50.0, 0]
+passage_len_seg_score_f1 = [74.7359614928951, 78.34918262353804, 80.11110102540424, 81.73179857285564, 79.4471454471454, 75.07581585831745, 83.0543506058212, 81.18253968253968, 52.80808080808082, 89.14285714285714, 92.80981110392874, 0, 57.14285714285714, 0]
+
+data1 = passage_len_seg_score_em[:11]
+data2 = passage_len_seg_score_f1[:11]
+x = [i * 50 for i in range(1,12)]
+
+plt.plot(x,data1,'-',label="EM")
+plt.plot(x,data2,'-',color='r',label="F1")
+plt.legend()
+plt.title("Passage length w.r.t EM and F1")
+plt.xlabel("Passage length")
+plt.ylabel("Score")
+plt.show()
