@@ -1,4 +1,4 @@
-""" Official evaluation script for v1.1 of the SQuAD dataset. """
+""" Error analysis based on official evaluation script for the SQuAD dataset. """
 from __future__ import print_function
 from collections import Counter
 import string
