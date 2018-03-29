@@ -15,6 +15,8 @@ main.py: program entry.
 
 models.py: R-net structure.
 
+error_analysis.py: analyze error answers
+
 ## Checkpoints
 **20180226**
 
