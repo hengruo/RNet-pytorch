@@ -9,9 +9,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torch.cuda
-from tqdm import *
+from tqdm import tqdm
 import os
 import random
+import ujson as uj
+import eval
 
 model_fn = "model.pt"
 model_dir = "model/"
@@ -30,16 +32,16 @@ def parse_args():
     return args.parse_args()
 
 
-def to_tensor(pack, data):
+def to_tensor(pack, data, dataset):
     # tensor representation of passage, question, answer
     # pw is a list of word embeddings.
-    # pw[i] == data.word_embedding[data.train.wpassages[pack[0]]]
+    # pw[i] == data.word_embedding[dataset.wpassages[pack[0]]]
     assert batch_size == len(pack)
     Ps, Qs, As = [], [], []
     max_pl, max_ql = 0, 0
     for i in range(batch_size):
         pid, qid, aid = pack[i]
-        p, q, a = data.train.passages[pid], data.train.questions[qid], data.train.answers[aid]
+        p, q, a = dataset.passages[pid], dataset.questions[qid], dataset.answers[aid]
         max_pl, max_ql = max(max_pl, len(p)), max(max_ql, len(q))
         Ps.append(p)
         Qs.append(q)
@@ -85,7 +87,7 @@ def train(epoch, data):
             l = data.train.length
             for i in tqdm(range(l)):
                 pack = packs[i]
-                pw, pc, qw, qc, a = to_tensor(pack, data)
+                pw, pc, qw, qc, a = to_tensor(pack, data, data.train)
                 optimizer.zero_grad()
                 out1, out2 = model(pw, pc, qw, qc)
                 loss1 = F.cross_entropy(out1, a[:, 0])
@@ -101,10 +103,36 @@ def train(epoch, data):
         raise e
     return model
 
+def get_anwser(i, j, pid, itow, dataset):
+    p = dataset.passages[pid]
+    i, j = max(i, j), min(i, j)
+    ans_ = []
+    for t in range(j-i+1):
+        ans_.append(p[i+t])
+    ans = ""
+    for a in ans_:
+        ans += itow[str(a)] + ' '
+    return ans[:-1]
 
 def test(model, data):
-    pass
-
+    l = data.dev.length
+    packs = trunk(data.dev.packs, batch_size)
+    err_cnt = 0
+    anss = {}
+    for i in tqdm(range(l)):
+        pack = packs[i]
+        pw, pc, qw, qc, a = to_tensor(pack, data, data.dev)
+        out1, out2 = model(pw, pc, qw, qc)
+        _, idx1 = torch.max(out1, dim=1)
+        _, idx2 = torch.max(out2, dim=1)
+        na = torch.cat([idx1.unsqueeze(1), idx2.unsqueeze(1)], dim=1)
+        for j in range(batch_size):
+            ans = get_anwser(na[j,0], na[j,1], pack[j][0], data.itow, data.dev)
+            anss[data.dev.question_ids[pack[j][1]]] = ans
+    with open('log/answer.json', 'w') as f:
+        uj.save(ans, f)
+        em, f1 = eval.evaluate_from_file('tmp/dev-v1.1.json', 'log/answer.json')
+        print("EM: {}, F1: {}".format(em, f1))
 
 def main():
     args = parse_args()
