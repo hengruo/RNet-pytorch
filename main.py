@@ -79,6 +79,8 @@ def trunk(packs, batch_size):
 
 def train(epoch, data):
     model = RNet()
+    if is_cuda:
+        model.cuda()
     optimizer = optim.Adadelta(model.parameters(), lr=1.0, rho=0.95, eps=1e-6)
     packs = trunk(data.train.packs, batch_size)
     try:

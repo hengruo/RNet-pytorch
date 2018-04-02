@@ -27,3 +27,6 @@ Implementation of R-net in PyTorch without self-attention.
 
 Complete implementation.
 
+**20180401**
+
+TODO: new embedding for numbers.
