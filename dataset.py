@@ -30,7 +30,7 @@ word_emb_url_base = "http://nlp.stanford.edu/data/"
 char_emb_url_base = "https://raw.githubusercontent.com/minimaxir/char-embeddings/master/"
 train_url_base = "https://rajpurkar.github.io/SQuAD-explorer/dataset/"
 dev_url_base = "https://rajpurkar.github.io/SQuAD-explorer/dataset/"
-# Glove embeddingß
+# GloVe embedding
 
 # SQuAD dataset
 
@@ -237,64 +237,30 @@ def parse_data_II(squad):
     parse_dataset(train, squad, squad.train)
     parse_dataset(dev, squad, squad.dev)
 
+def get_embeddings(inputs, squad, cemb, wemb, wtoi):
+    for p in inputs:
+        ws = []
+        for i, n in enumerate(p):
+            c = squad.itow[str(n)]
+            if c not in wtoi:
+                nn = wtoi[c]
+                wemb.append(squad.word_embedding[n])
+                cemb.append(squad.char_embedding[n])
+                p[i] = nn
+            ws.append(wtoi[c])
+        ss.append(ws)
+    return ss
+
 def parse_data_III(squad):
     wtoi = defaultdict(lambda: len(wtoi))
     specials = ['<UNK>', '<PAD>', '<SOS>', '<EOS>']
     [wtoi[x] for x in specials]
     cemb = [np.zeros(char_emb_size) for _ in specials]
     wemb = [np.zeros(word_emb_size) for _ in specials]
-    ss = []
-    for p in squad.train.passages:
-        ws = []
-        for i, n in enumerate(p):
-            c = squad.itow[str(n)]
-            if c not in wtoi:
-                nn = wtoi[c]
-                wemb.append(squad.word_embedding[n])
-                cemb.append(squad.char_embedding[n])
-                p[i] = nn
-            ws.append(wtoi[c])
-        ss.append(ws)
-    squad.train.passages = ss
-    ss = []
-    for p in squad.dev.passages:
-        ws = []
-        for i, n in enumerate(p):
-            c = squad.itow[str(n)]
-            if c not in wtoi:
-                nn = wtoi[c]
-                wemb.append(squad.word_embedding[n])
-                cemb.append(squad.char_embedding[n])
-                p[i] = nn
-            ws.append(wtoi[c])
-        ss.append(ws)
-    squad.dev.passages = ss
-    ss = []
-    for p in squad.train.questions:
-        ws = []
-        for i, n in enumerate(p):
-            c = squad.itow[str(n)]
-            if c not in wtoi:
-                nn = wtoi[c]
-                wemb.append(squad.word_embedding[n])
-                cemb.append(squad.char_embedding[n])
-                p[i] = nn
-            ws.append(wtoi[c])
-        ss.append(ws)
-    squad.train.questions = ss
-    ss = []
-    for p in squad.dev.questions:
-        ws = []
-        for i, n in enumerate(p):
-            c = squad.itow[str(n)]
-            if c not in wtoi:
-                nn = wtoi[c]
-                wemb.append(squad.word_embedding[n])
-                cemb.append(squad.char_embedding[n])
-                p[i] = nn
-            ws.append(wtoi[c])
-        ss.append(ws)
-    squad.dev.questions = ss
+    squad.train.passages = get_embeddings(squad.train.passages, squad, cemb, wemb, wtoi)
+    squad.dev.passages = get_embeddings(squad.dev.passages, squad, cemb, wemb, wtoi)
+    squad.train.questions = get_embeddings(squad.train.questions, squad, cemb, wemb, wtoi)
+    squad.dev.questions = get_embeddings(squad.dev.questions, squad, cemb, wemb, wtoi)
     itow = {}
     for word in wtoi:
         itow[wtoi[word]] = word
