@@ -64,7 +64,7 @@ class Encoder(nn.Module):
         input = torch.unsqueeze(input, dim=1)
         for i in range(l):
             self.gru.flatten_parameters()
-            o, h = self.gru(input[i], h)
+            _, h = self.gru(input[i], h)
             hs[i] = h
         del h
         hs = hs.permute([0,2,1,3]).contiguous().view(l, batch_size, -1)
@@ -106,24 +106,25 @@ class PQMatcher(nn.Module):
         vs = Variable(vs)
         v = Variable(v)
         V = Variable(V)
+        Uq_ = Uq.permute([1, 0, 2])
         for i in range(lp):
             Wup = self.Wp(Up[i])
             Wuq = self.Wq(Uq)
-            x = F.tanh(Wup + Wuq + self.Wv(v))
-            s = torch.bmm(x.permute([1, 0, 2]), V)
+            Wvv = self.Wv(v)
+            x = F.tanh(Wup + Wuq + Wvv).permute([1, 0, 2])
+            s = torch.bmm(x, V)
             s = torch.squeeze(s, 2)
-            a = F.softmax(s, 1)
-            c = torch.bmm(a.unsqueeze(1), Uq.permute([1, 0, 2])).squeeze()
+            a = F.softmax(s, 1).unsqueeze(1)
+            c = torch.bmm(a, Uq_).squeeze()
             r = torch.cat([Up[i], c], dim=1)
             g = F.sigmoid(self.Wg(r))
-            r = torch.mul(g, r)
-            c_ = r[:, self.in_size*2:]
+            r_ = torch.mul(g, r)
+            c_ = r_[:, self.in_size*2:]
             v = self.gru(c_, v)
             vs[i] = v
-        del v
-        del V
+            del Wup, Wuq, Wvv, x, a, s, c, g, r, r_, c_
         vs = self.dropout(vs)
-        return vs.contiguous()
+        return vs
 
 # Input is question-aware passage representation
 # Output is self-attention question-aware passage representation
@@ -152,15 +153,17 @@ class SelfMatcher(nn.Module):
         V = Variable(V)
         hs = Variable(hs)
         for i in range(l):
-            x = F.tanh(self.Wp(v[i])+self.Wp_(v))
-            s = torch.bmm(x.permute([1, 0, 2]), V)
+            Wpv = self.Wp(v[i])
+            Wpv_ = self.Wp_(v)
+            x = F.tanh(Wpv + Wpv_)
+            x = x.permute([1, 0, 2])
+            s = torch.bmm(x, V)
             s = torch.squeeze(s, 2)
-            a = F.softmax(s, 1)
-            c = torch.bmm(a.unsqueeze(1), v.permute([1, 0, 2])).squeeze()
+            a = F.softmax(s, 1).unsqueeze(1)
+            c = torch.bmm(a, v.permute([1, 0, 2])).squeeze()
             h = self.gru(c, h)
             hs[i] = h
-        del h
-        del V
+            del Wpv, Wpv_, x, s, a, c
         hs = self.dropout(hs)
         return hs.contiguous()
 
@@ -187,19 +190,21 @@ class Pointer(nn.Module):
         if self.is_cuda:
             v = v.cuda()
         v = Variable(v)
-        x = F.tanh(self.Wu(u))
-        s = torch.bmm(x.permute([1, 0, 2]), v)
+        u_ = u.permute([1,0,2])
+        h_ = h.permute([1,0,2])
+        x = F.tanh(self.Wu(u)).permute([1, 0, 2])
+        s = torch.bmm(x, v)
         s = torch.squeeze(s, 2)
-        a = F.softmax(s, 1)
-        r = torch.bmm(a.unsqueeze(1), u.permute([1,0,2])).squeeze()
-        x = F.tanh(self.Wh(h)+self.Wha(r))
-        s = torch.bmm(x.permute([1, 0, 2]), v)
+        a = F.softmax(s, 1).unsqueeze(1)
+        r = torch.bmm(a, u_).squeeze()
+        x = F.tanh(self.Wh(h)+self.Wha(r)).permute([1, 0, 2])
+        s = torch.bmm(x, v)
         s = torch.squeeze(s)
         p1 = F.softmax(s, 1)
-        c = torch.bmm(p1.unsqueeze(1), h.permute([1,0,2])).squeeze()
+        c = torch.bmm(p1.unsqueeze(1), h_).squeeze()
         r = self.gru(c, r)
-        x = F.tanh(self.Wh(h) + self.Wha(r))
-        s = torch.bmm(x.permute([1, 0, 2]), v)
+        x = F.tanh(self.Wh(h) + self.Wha(r)).permute([1, 0, 2])
+        s = torch.bmm(x, v)
         s = torch.squeeze(s)
         p2 = F.softmax(s, 1)
         return (p1, p2)

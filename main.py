@@ -94,7 +94,7 @@ def train(epoch, data):
                 loss2 = F.cross_entropy(out2, a[:, 1])
                 loss = (loss1 + loss2)/2
                 loss.backward(retain_graph=False)
-                del loss
+                del loss, loss1, loss2, out1, out2
                 torch.cuda.empty_cache()
                 optimizer.step()
                 if (i + 1) % checkpoint == 0:
