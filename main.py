@@ -19,8 +19,9 @@ model_fn = "model.pt"
 model_dir = "model/"
 log_dir = "log/"
 checkpoint = 1000
-batch_size = 64
+batch_size = models.batch_size
 is_cuda = torch.cuda.is_available()
+torch.backends.cudnn.enabled = True
 
 
 def parse_args():
@@ -59,9 +60,8 @@ def to_tensor(pack, data, dataset):
         qc[:ql, i, :] = torch.FloatTensor(data.char_embedding[Qs[i]])
         a[i, :] = torch.LongTensor(As[i])
     if is_cuda:
-        pw, pc, qw, qc, a = Variable(pw.cuda()), Variable(pc.cuda()), Variable(qw.cuda()), Variable(qc.cuda()), Variable(a.cuda())
-    else:
-        pw, pc, qw, qc, a = Variable(pw), Variable(pc), Variable(qw), Variable(qc), Variable(a)
+        pw, pc, qw, qc, a = pw.cuda(), pc.cuda(), qw.cuda(), qc.cuda(), a.cuda()
+    pw, pc, qw, qc, a = Variable(pw), Variable(pc), Variable(qw), Variable(qc), Variable(a)
     return pw, pc, qw, qc, a.long()
 
 
@@ -78,9 +78,7 @@ def trunk(packs, batch_size):
 
 
 def train(epoch, data):
-    model = RNet()
-    if is_cuda:
-        model.cuda()
+    model = RNet(is_cuda)
     optimizer = optim.Adadelta(model.parameters(), lr=1.0, rho=0.95, eps=1e-6)
     packs = trunk(data.train.packs, batch_size)
     try:
@@ -95,7 +93,9 @@ def train(epoch, data):
                 loss1 = F.cross_entropy(out1, a[:, 0])
                 loss2 = F.cross_entropy(out2, a[:, 1])
                 loss = (loss1 + loss2)/2
-                loss.backward()
+                loss.backward(retain_graph=False)
+                del loss
+                torch.cuda.empty_cache()
                 optimizer.step()
                 if (i + 1) % checkpoint == 0:
                     torch.save(model, os.path.join(model_dir, "model-tmp-{:02d}-{}.pt".format(ep, i + 1)))
