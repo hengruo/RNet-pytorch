@@ -3,6 +3,7 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import utils
 
 char_limit = 16
 char_dim = 8
@@ -11,11 +12,13 @@ char_num_layers = 1
 char_dir = 2
 
 dropout = 0.2
-batch_size = 32
+batch_size = 24
 hidden_size = 75
 word_emb_size = 300
 char_emb_size = char_dir * char_num_layers * char_hidden_size
 emb_size = word_emb_size + char_emb_size
+
+logger = utils.Logger()
 
 # Using bidirectional gru hidden state to represent char embedding for a word
 class CharEmbedding(nn.Module):
@@ -66,7 +69,7 @@ class Encoder(nn.Module):
             self.gru.flatten_parameters()
             _, h = self.gru(input[i], h)
             hs[i] = h
-        del h
+        del h, input
         hs = hs.permute([0,2,1,3]).contiguous().view(l, batch_size, -1)
         hs = self.dropout(hs)
         return hs
@@ -123,6 +126,7 @@ class PQMatcher(nn.Module):
             v = self.gru(c_, v)
             vs[i] = v
             del Wup, Wuq, Wvv, x, a, s, c, g, r, r_, c_
+        del up, uq, Up, Uq, Uq_
         vs = self.dropout(vs)
         return vs
 
@@ -163,9 +167,11 @@ class SelfMatcher(nn.Module):
             c = torch.bmm(a, v.permute([1, 0, 2])).squeeze()
             h = self.gru(c, h)
             hs[i] = h
+            logger.gpu_mem_log("SelfMatcher {:002d}".format(i), ['x', 'Wpv', 'Wpv_', 's', 'c', 'hs'], [x.data, Wpv.data, Wpv_.data, s.data, c.data, hs.data])
             del Wpv, Wpv_, x, s, a, c
         hs = self.dropout(hs)
-        return hs.contiguous()
+        del h, v
+        return hs
 
 # Input is question representation and self-attention question-aware passage representation
 # Output are start and end pointer distribution
@@ -229,6 +235,7 @@ class RNet(nn.Module):
         Up = self.encoder(P)
         Uq = self.encoder(Q)
         v = self.pqmatcher(Up, Uq)
+        torch.cuda.empty_cache()
         h = self.selfmatcher(v)
         p1, p2 = self.pointer(h, Uq)
         return p1, p2

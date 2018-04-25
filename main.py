@@ -84,7 +84,7 @@ def train(epoch, data):
     try:
         for ep in range(epoch):
             print("EPOCH {:02d}: ".format(ep))
-            l = data.train.length
+            l = len(packs)
             for i in tqdm(range(l)):
                 pack = packs[i]
                 pw, pc, qw, qc, a = to_tensor(pack, data, data.train)
@@ -94,15 +94,24 @@ def train(epoch, data):
                 loss2 = F.cross_entropy(out2, a[:, 1])
                 loss = (loss1 + loss2)/2
                 loss.backward(retain_graph=False)
+                optimizer.step()
                 del loss, loss1, loss2, out1, out2
                 torch.cuda.empty_cache()
-                optimizer.step()
                 if (i + 1) % checkpoint == 0:
                     torch.save(model, os.path.join(model_dir, "model-tmp-{:02d}-{}.pt".format(ep, i + 1)))
+            random.shuffle(packs)
         torch.save(model, os.path.join(model_dir, model_fn))
     except Exception as e:
         torch.save(model, os.path.join(model_dir, "model-{:02d}-{}.pt".format(ep, i + 1)))
+        with open("debug.log", "w") as f:
+            print("Write!")
+            f.writelines(models.logger.logs)
         raise e
+    except KeyboardInterrupt as k:
+        torch.save(model, os.path.join(model_dir, "model-{:02d}-{}.pt".format(ep, i + 1)))
+        with open("debug.log", "w") as f:
+            print("Write!")
+            f.writelines(models.logger.logs)
     return model
 
 def get_anwser(i, j, pid, itow, dataset):
