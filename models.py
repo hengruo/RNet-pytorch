@@ -1,8 +1,8 @@
 import torch
-from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import utils
 
 char_limit = 16
 char_dim = 8
@@ -11,11 +11,14 @@ char_num_layers = 1
 char_dir = 2
 
 dropout = 0.2
-batch_size = 32
+batch_size = 24
 hidden_size = 75
 word_emb_size = 300
 char_emb_size = char_dir * char_num_layers * char_hidden_size
 emb_size = word_emb_size + char_emb_size
+
+logger = utils.Logger()
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Using bidirectional gru hidden state to represent char embedding for a word
 class CharEmbedding(nn.Module):
@@ -27,7 +30,7 @@ class CharEmbedding(nn.Module):
         self.hidden_size = char_hidden_size
         self.in_size = in_size
         self.gru = nn.GRU(input_size=in_size, bidirectional=self.bidirectional, num_layers=self.num_layers, hidden_size=self.hidden_size)
-        self.h = Variable(torch.randn(self.num_layers*self.dir, 1, self.hidden_size))
+        self.h = torch.randn(self.num_layers*self.dir, 1, self.hidden_size)
         self.out_size = self.hidden_size * self.num_layers * self.dir
 
     def forward(self, input):
@@ -40,7 +43,7 @@ class CharEmbedding(nn.Module):
 # Input is the concatenation of word embedding and its corresponding char embedding
 # Output is passage embedding or question embedding
 class Encoder(nn.Module):
-    def __init__(self, in_size, is_cuda):
+    def __init__(self, in_size):
         super(Encoder, self).__init__()
         self.bidirectional = True
         self.dir = 2 if self.bidirectional else 1
@@ -50,31 +53,25 @@ class Encoder(nn.Module):
         self.gru = nn.GRU(input_size=in_size, bidirectional=self.bidirectional, num_layers=self.num_layers, hidden_size=self.hidden_size)
         self.out_size = self.hidden_size * self.num_layers * self.dir
         self.dropout = nn.Dropout(p=dropout)
-        self.is_cuda = is_cuda
 
     def forward(self, input):
         (l, _, in_size) = input.size()
-        hs = torch.zeros(l, self.num_layers * self.dir, batch_size, hidden_size)
-        h = torch.randn(self.num_layers * self.dir, batch_size, self.hidden_size)
-        if self.is_cuda:
-            h = h.cuda()
-            hs = hs.cuda()
-        h = Variable(h)
-        hs = Variable(hs)
+        hs = torch.zeros(l, self.num_layers * self.dir, batch_size, hidden_size).to(device)
+        h = torch.randn(self.num_layers * self.dir, batch_size, self.hidden_size).to(device)
         input = torch.unsqueeze(input, dim=1)
         for i in range(l):
             self.gru.flatten_parameters()
             _, h = self.gru(input[i], h)
             hs[i] = h
-        del h
-        hs = hs.permute([0,2,1,3]).contiguous().view(l, batch_size, -1)
-        hs = self.dropout(hs)
+        del h, input
+        hs_ = hs.permute([0,2,1,3]).contiguous().view(l, batch_size, -1)
+        hs = self.dropout(hs_)
         return hs
 
 # Using passage and question to obtain question-aware passage representation
 # Co-attention
 class PQMatcher(nn.Module):
-    def __init__(self, in_size, is_cuda):
+    def __init__(self, in_size):
         super(PQMatcher, self).__init__()
         self.hidden_size = hidden_size * 2
         self.in_size = in_size
@@ -85,27 +82,18 @@ class PQMatcher(nn.Module):
         self.Wg = nn.Linear(self.in_size*4, self.in_size*4, bias=False)
         self.out_size = self.hidden_size
         self.dropout = nn.Dropout(p=dropout)
-        self.is_cuda = is_cuda
 
     
     def forward(self, up, uq):
         (lp, _, _) = up.size()
         (lq, _, _) = uq.size()
-        mixerp, mixerq = torch.arange(lp).long(), torch.arange(lq).long()
-        if self.is_cuda:
-            mixerp, mixerq = mixerp.cuda(), mixerq.cuda()
+        mixerp, mixerq = torch.arange(lp).long().to(device), torch.arange(lq).long().to(device)
         Up = torch.cat([up, up[mixerp]], dim=2)
         Uq = torch.cat([uq, uq[mixerq]], dim=2)
-        vs = torch.zeros(lp, batch_size, self.out_size)
-        v = torch.randn(batch_size, self.hidden_size)
-        V = torch.randn(batch_size, self.hidden_size, 1)
-        if self.is_cuda:
-            vs = vs.cuda()
-            v = v.cuda()
-            V = V.cuda()
-        vs = Variable(vs)
-        v = Variable(v)
-        V = Variable(V)
+        vs = torch.zeros(lp, batch_size, self.out_size).to(device)
+        v = torch.randn(batch_size, self.hidden_size).to(device)
+        V = torch.randn(batch_size, self.hidden_size, 1).to(device)
+        
         Uq_ = Uq.permute([1, 0, 2])
         for i in range(lp):
             Wup = self.Wp(Up[i])
@@ -123,13 +111,14 @@ class PQMatcher(nn.Module):
             v = self.gru(c_, v)
             vs[i] = v
             del Wup, Wuq, Wvv, x, a, s, c, g, r, r_, c_
+        del up, uq, Up, Uq, Uq_
         vs = self.dropout(vs)
         return vs
 
 # Input is question-aware passage representation
 # Output is self-attention question-aware passage representation
 class SelfMatcher(nn.Module):
-    def __init__(self, in_size, is_cuda):
+    def __init__(self, in_size):
         super(SelfMatcher, self).__init__()
         self.hidden_size = in_size
         self.in_size = in_size
@@ -138,20 +127,13 @@ class SelfMatcher(nn.Module):
         self.Wp_ = nn.Linear(self.in_size, self.hidden_size, bias=False)
         self.out_size = self.hidden_size
         self.dropout = nn.Dropout(p=dropout)
-        self.is_cuda = is_cuda
 
     def forward(self, v):
         (l, _, _) = v.size()
-        h = torch.randn(batch_size, self.hidden_size)
-        V = torch.randn(batch_size, self.hidden_size, 1)
-        hs = torch.zeros(l, batch_size, self.out_size)
-        if self.is_cuda:
-            h = h.cuda()
-            V = V.cuda()
-            hs = hs.cuda()
-        h = Variable(h)
-        V = Variable(V)
-        hs = Variable(hs)
+        h = torch.randn(batch_size, self.hidden_size).to(device)
+        V = torch.randn(batch_size, self.hidden_size, 1).to(device)
+        hs = torch.zeros(l, batch_size, self.out_size).to(device)
+        
         for i in range(l):
             Wpv = self.Wp(v[i])
             Wpv_ = self.Wp_(v)
@@ -163,14 +145,16 @@ class SelfMatcher(nn.Module):
             c = torch.bmm(a, v.permute([1, 0, 2])).squeeze()
             h = self.gru(c, h)
             hs[i] = h
+            logger.gpu_mem_log("SelfMatcher {:002d}".format(i), ['x', 'Wpv', 'Wpv_', 's', 'c', 'hs'], [x.data, Wpv.data, Wpv_.data, s.data, c.data, hs.data])
             del Wpv, Wpv_, x, s, a, c
         hs = self.dropout(hs)
-        return hs.contiguous()
+        del h, v
+        return hs
 
 # Input is question representation and self-attention question-aware passage representation
 # Output are start and end pointer distribution
 class Pointer(nn.Module):
-    def __init__(self, in_size1, in_size2, is_cuda):
+    def __init__(self, in_size1, in_size2):
         super(Pointer, self).__init__()
         self.hidden_size = in_size2
         self.in_size1 = in_size1
@@ -181,15 +165,11 @@ class Pointer(nn.Module):
         self.Wh = nn.Linear(self.in_size1, self.hidden_size, bias=False)
         self.Wha = nn.Linear(self.in_size2, self.hidden_size, bias=False)
         self.out_size = 1
-        self.is_cuda = is_cuda
 
     def forward(self, h, u):
         (lp, _, _) = h.size()
         (lq, _, _) = u.size()
-        v = torch.randn(batch_size, self.hidden_size, 1)
-        if self.is_cuda:
-            v = v.cuda()
-        v = Variable(v)
+        v = torch.randn(batch_size, self.hidden_size, 1).to(device)
         u_ = u.permute([1,0,2])
         h_ = h.permute([1,0,2])
         x = F.tanh(self.Wu(u)).permute([1, 0, 2])
@@ -211,14 +191,12 @@ class Pointer(nn.Module):
 
 
 class RNet(nn.Module):
-    def __init__(self, is_cuda):
+    def __init__(self):
         super(RNet, self).__init__()
-        self.encoder = Encoder(emb_size, is_cuda)
-        self.pqmatcher = PQMatcher(self.encoder.out_size, is_cuda)
-        self.selfmatcher = SelfMatcher(self.pqmatcher.out_size, is_cuda)
-        self.pointer = Pointer(self.selfmatcher.out_size, self.encoder.out_size, is_cuda)
-        self.is_cuda = is_cuda
-        if is_cuda: self.cuda()
+        self.encoder = Encoder(emb_size)
+        self.pqmatcher = PQMatcher(self.encoder.out_size)
+        self.selfmatcher = SelfMatcher(self.pqmatcher.out_size)
+        self.pointer = Pointer(self.selfmatcher.out_size, self.encoder.out_size)
 
     # wemb of P, cemb of P, w of Q, c of Q, Answer
     def forward(self, Pw, Pc, Qw, Qc):
@@ -229,6 +207,7 @@ class RNet(nn.Module):
         Up = self.encoder(P)
         Uq = self.encoder(Q)
         v = self.pqmatcher(Up, Uq)
+        torch.cuda.empty_cache()
         h = self.selfmatcher(v)
         p1, p2 = self.pointer(h, Uq)
         return p1, p2

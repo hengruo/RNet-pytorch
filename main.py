@@ -4,11 +4,11 @@ from dataset import get_dataset
 from dataset import SQuAD
 from models import RNet
 import torch
-from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torch.cuda
+import torch.backends.cudnn as cudnn
 from tqdm import tqdm
 import os
 import random
@@ -20,9 +20,8 @@ model_dir = "model/"
 log_dir = "log/"
 checkpoint = 1000
 batch_size = models.batch_size
-is_cuda = torch.cuda.is_available()
-torch.backends.cudnn.enabled = True
-
+device = models.device
+cudnn.enabled = False
 
 def parse_args():
     args = argparse.ArgumentParser(description="An R-net implementation.")
@@ -59,9 +58,7 @@ def to_tensor(pack, data, dataset):
         qw[:ql, i, :] = torch.FloatTensor(data.word_embedding[Qs[i]])
         qc[:ql, i, :] = torch.FloatTensor(data.char_embedding[Qs[i]])
         a[i, :] = torch.LongTensor(As[i])
-    if is_cuda:
-        pw, pc, qw, qc, a = pw.cuda(), pc.cuda(), qw.cuda(), qc.cuda(), a.cuda()
-    pw, pc, qw, qc, a = Variable(pw), Variable(pc), Variable(qw), Variable(qc), Variable(a)
+    pw, pc, qw, qc, a = pw.to(device), pc.to(device), qw.to(device), qc.to(device), a.to(device)
     return pw, pc, qw, qc, a.long()
 
 
@@ -78,13 +75,13 @@ def trunk(packs, batch_size):
 
 
 def train(epoch, data):
-    model = RNet(is_cuda)
+    model = RNet().to(device)
     optimizer = optim.Adadelta(model.parameters(), lr=1.0, rho=0.95, eps=1e-6)
     packs = trunk(data.train.packs, batch_size)
     try:
         for ep in range(epoch):
             print("EPOCH {:02d}: ".format(ep))
-            l = data.train.length
+            l = len(packs)
             for i in tqdm(range(l)):
                 pack = packs[i]
                 pw, pc, qw, qc, a = to_tensor(pack, data, data.train)
@@ -93,16 +90,24 @@ def train(epoch, data):
                 loss1 = F.cross_entropy(out1, a[:, 0])
                 loss2 = F.cross_entropy(out2, a[:, 1])
                 loss = (loss1 + loss2)/2
-                loss.backward(retain_graph=False)
-                del loss, loss1, loss2, out1, out2
-                torch.cuda.empty_cache()
+                loss.backward()
                 optimizer.step()
+                del loss, loss1, loss2, out1, out2
                 if (i + 1) % checkpoint == 0:
                     torch.save(model, os.path.join(model_dir, "model-tmp-{:02d}-{}.pt".format(ep, i + 1)))
+            random.shuffle(packs)
         torch.save(model, os.path.join(model_dir, model_fn))
     except Exception as e:
         torch.save(model, os.path.join(model_dir, "model-{:02d}-{}.pt".format(ep, i + 1)))
+        with open("debug.log", "w") as f:
+            print("Write!")
+            f.writelines(models.logger.logs)
         raise e
+    except KeyboardInterrupt as k:
+        torch.save(model, os.path.join(model_dir, "model-{:02d}-{}.pt".format(ep, i + 1)))
+        with open("debug.log", "w") as f:
+            print("Write!")
+            f.writelines(models.logger.logs)
     return model
 
 def get_anwser(i, j, pid, itow, dataset):

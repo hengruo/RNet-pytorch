@@ -9,7 +9,6 @@ import random
 import copy
 from models import CharEmbedding, word_emb_size, char_emb_size
 import torch
-from torch.autograd import Variable
 from tqdm import *
 
 '''
@@ -178,7 +177,7 @@ def parse_data_I(squad: SQuAD):
     wcemb = [np.zeros(char_emb_size) for _ in specials]
     for i in tqdm(range(4, len(wemb))):
         chars = torch.FloatTensor([cemb[ctoi[c]] for c in list(squad.itow[str(i)])])
-        chars = Variable(torch.unsqueeze(chars, 1))
+        chars = torch.unsqueeze(chars, 1)
         wcemb.append(charemb(chars).data.numpy())
     squad.char_embedding = np.array(wcemb)
     squad.word_embedding = np.array(wemb)
