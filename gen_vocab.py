@@ -8,7 +8,6 @@ from word_model import Vocab ,WordModel
 import pickle
 import coloredlogs, logging
 from encoder import Encoder
-from torch.autograd import Variable
 import torch
 import torch.nn as nn
 
