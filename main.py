@@ -13,7 +13,6 @@ from tqdm import tqdm
 import os
 import random
 import ujson as uj
-import eval
 
 model_fn = "model.pt"
 model_dir = "model/"
