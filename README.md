@@ -1,4 +1,4 @@
-# ZZXproject
+# RNet-pytorch
 
 ## Overview
 [Natural Language Computing Group, MSRA: R-NET: Machine Reading Comprehension with Self-matching Networks](https://www.microsoft.com/en-us/research/publication/mrc/)
